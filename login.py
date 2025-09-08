@@ -6,7 +6,7 @@ import re
 import sys
 import time
 import socket
-
+from urllib.parse import urlparse, parse_qs
 BLUE, END = '\033[1;36m', '\033[0m'
 
 requesr_url = ''
@@ -18,28 +18,8 @@ session = requests.Session()
 session.trust_env = False
 
 def log_out():
-    default_request_host_url = 'http://172.30.21.100/'
     try:
-        with open('request_host_url.txt', 'w') as f:
-            request_host_url = f.readline()
-    except:
-        request_host_url = default_request_host_url
-    headers = {
-        'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
-        'accept-encoding': 'gzip, deflate',
-        'Cache-Control': 'max-age=0',
-        'Connection': 'keep-alive',
-        'accept-language': 'zh-CN,zh-TW;q=0.8,zh;q=0.6,en;q=0.4,ja;q=0.2',
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest',
-    }
-
-    params = {
-        'token': '',
-    }
-    try:
-        response = requests.get(request_host_url+'api/account/logout', params=params, headers=headers)
+        response = requests.get('http://172.30.21.100/api/account/logout')
         msg = response.json()
         if msg['code'] == 0:
             logging.info('try to logout, and logout succeed.')
@@ -47,36 +27,36 @@ def log_out():
     except:
         logging.info("try to logout, but logout failed.")
 
+def get_csrf_token():
+    resp = session.get("http://172.30.21.100/api/csrf-token")
+    return resp.json().get("csrf_token")
+
 def login_request(username, password) -> bool:
     if not is_net_ok():
         log_out()
-        # time.sleep(5)
         logging.info("your computer is offline，request now...")
-        # password = "{B}" + base64.b64encode(password.encode()).decode()  # 加密
-        nasId = getNasId()
+        nasId = get_nas_id()
         logging.info('nasId: ' + str(nasId))
+        csrf_token = get_csrf_token()
         data = {
             "username": username,
             "password": password,
             "nasId": nasId
         }
         headers = {
-            'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
             'accept-encoding': 'gzip, deflate',
-            'Cache-Control': 'max-age=0',
-            'Connection': 'keep-alive',
+            'cache-control': 'max-age=0',
+            'connection': 'keep-alive',
             'accept-language': 'zh-CN,zh-TW;q=0.8,zh;q=0.6,en;q=0.4,ja;q=0.2',
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            'X-Requested-With': 'XMLHttpRequest',
+            'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'x-requested-with': 'XMLHttpRequest',
+            'x-csrf-token': csrf_token,
         }
-        # if not is_login_as_pc:
-        #     headers['User-Agent'] = 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Mobile Safari/537.36'
         try:
             response = session.post(requesr_url, data=data, headers=headers)
             response.encoding = response.apparent_encoding
 
-            # print(response.text)
             if '"authCode":"ok' in response.text:
                 logging.info("login successfully")
                 user_ip = get_user_ip(response.text)
@@ -125,26 +105,16 @@ def get_user_ip(response_text):
     return ip
 
 
-def getNasId() -> int:
-    response = session.get(
-        'http://www.msftconnecttest.com/redirect?cmd=redirect')
-    url = response.url
-
-    with open('request_host_url.txt', 'w') as f:
-        f.write(url)
-
-    response = session.get(url + 'api/config')
-    match_list = re.findall(r'"default_nas":"(.*?)"', response.text, re.S)
-    if len(match_list) == 0:
-        return -1
-    nasId_str = match_list[0]
-    nasId = int(nasId_str)
-
-    global requesr_url
-    requesr_url = url + '/api/account/login'
-
-    return nasId
-
+def get_nas_id():
+    response = session.get('http://www.msftconnecttest.com/redirect', allow_redirects=True)
+    login_url = response.url
+    parsed_url = urlparse(login_url)
+    query_params = parse_qs(parsed_url.query)
+    nasid_list = query_params.get("nasId")
+    if nasid_list:
+        nasid = nasid_list[0]
+        return nasid
+    return -1
 
 def heading():
     str = r"""
