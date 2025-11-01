@@ -23,16 +23,6 @@ logging.basicConfig(level=logging.INFO,
 session = requests.Session()
 session.trust_env = False
 
-# Clash相关可执行文件列表
-CLASH_EXECUTABLES = [
-    'clash-verge.exe',
-    'clash.exe',
-    'clash-win64.exe',
-    'Clash.for.Windows.exe',
-    'Clash.Meta.exe',
-    'v2rayN.exe'
-]
-
 def log_out():
     """注销当前连接"""
     try:
@@ -253,9 +243,8 @@ def heading():
 """
     print(BLUE + banner + END + '\n')
 
-async def main_loop(username, password, has_clash=False, clash_path=""):
+async def main_loop(username, password, has_clash=False, clash_path="", CLASH_EXECUTABLES=['clash-verge.exe'], check_interval=600):
     """主循环：每10分钟检测一次网络连接"""
-    check_interval = 600  # 10分钟 = 600秒
     
     while True:
         try:
@@ -269,7 +258,7 @@ async def main_loop(username, password, has_clash=False, clash_path=""):
                 # 如果有clash，先关闭
                 closed_processes = []
                 if has_clash:
-                    closed_processes = close_clash_processes()
+                    closed_processes = close_clash_processes(CLASH_EXECUTABLES)
                 
                 # 执行登录
                 success = login_request(username, password)
@@ -297,21 +286,17 @@ async def main_loop(username, password, has_clash=False, clash_path=""):
 if __name__ == "__main__":
     heading()
     
-    # 配置信息 - 请修改为你的实际信息
+    # 配置信息
+    with open('setting.yaml', 'r', encoding='utf-8') as f:
+        settings = yaml.safe_load(f)
     username = settings.get('校园网账号')
     password = settings.get('校园网密码')
     has_clash = settings.get('clash路径') is not None
     clash_path = settings.get('clash路径')
+    CLASH_EXECUTABLES = settings.get('clash进程名称',['clash-verge.exe']) # 默认clash-verge.exe
+    check_interval = settings.get('检测间隔', 600)  # 默认10分钟
 
     print(f"校园网自动连接系统启动")
-    print(f"用户名: {username}")
-    print(f"是否使用Clash: {has_clash}")
-    if has_clash:
-        print(f"Clash路径: {clash_path}")
     print("按 Ctrl+C 可退出程序")
     
-    # 运行主循环
-    try:
-        asyncio.run(main_loop(username, password, has_clash, clash_path))
-    except KeyboardInterrupt:
-        logging.info("程序已退出")
+    asyncio.run(main_loop(username, password, has_clash, clash_path, CLASH_EXECUTABLES, check_interval))
