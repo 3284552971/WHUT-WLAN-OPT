@@ -2,3 +2,5 @@
 校园网密码: your_password
 # 没有就填None
 clash路径: None
+clash进程名称: ['clash-verge.exe']
+检测间隔: 600
