@@ -1,6 +1,6 @@
-校园网账号: your_username
-校园网密码: your_password
-# 没有就填None
-clash路径: None
-clash进程名称: ['clash-verge.exe']
+# string
+校园网账号: "<账号>"
+校园网密码: "<密码>"
+url: "<登录连接>"
+# int
 检测间隔: 600
