@@ -21,12 +21,12 @@ class Network_maintain:
         return True
 
     async def main_loop(self):
-        result = asyncio.run(self.setting())
+        result = await self.setting()
         if not result:
             print("请先在setting.yaml中配置校园网账号和密码")
         while not result:
             await asyncio.sleep(30)
-            result = asyncio.run(self.setting())
+            result = await self.setting()
         print("网络维护程序已启动...")
         while True:
             check = await self.is_net_ok()
